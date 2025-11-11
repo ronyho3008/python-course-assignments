@@ -2,7 +2,7 @@
 ===
 
 ## Coment on friends Day02 assignment 
-I enjoyed looking and comenting on Adib's DNA sequences transformer and ***
+I enjoyed looking and comenting on Adib's DNA sequences transformer and on Shelly's PCR Calculator :)
 
 ---
 
