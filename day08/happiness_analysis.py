@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 df = pd.read_csv(r"C:\Users\ronyh\OneDrive\Desktop\python_course\python-course-assignments\data\2019.csv")
 
@@ -15,7 +16,7 @@ print(df.columns)
 top10 = df.sort_values(by="Score", ascending=False).head(10)
 
 plt.figure(figsize=(10, 6))
-bars = plt.bar(top10["Country or region"], top10["Score"], color='magenta')
+bars = plt.bar(top10["Country or region"], top10["Score"], color='lightblue')
 
 plt.title("Top 10 Happiest Countries in 2019")
 plt.xlabel("Country")
@@ -45,7 +46,7 @@ correlation = np.corrcoef(x, y)[0, 1]
 print("Correlation between GDP and Happiness:", correlation)
 
 
-plt.scatter(x, y, alpha=0.4, color='yellow')
+plt.scatter(x, y, alpha=0.4, color='lightpink')
 plt.xlabel("GDP per capita")
 plt.ylabel("Happiness Score")
 plt.title("GDP vs Happiness")
