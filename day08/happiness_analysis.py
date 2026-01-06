@@ -5,7 +5,7 @@ import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
-df = pd.read_csv(r"C:\Users\ronyh\OneDrive\Desktop\python_course\python-course-assignments\data\2019.csv")
+df = pd.read_csv("2019.csv")
 
 print(df.head())
 print(df.info())
