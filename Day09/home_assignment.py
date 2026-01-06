@@ -2,12 +2,9 @@ from datetime import datetime
 from collections import defaultdict, Counter
 from pathlib import Path
 import matplotlib.pyplot as plt
+import re
 
-
-
-# =========================
-# Deadlines (from README)
-# =========================
+## Deadlines (from README)
 DEADLINES = {
     "Day01": "2025-11-01T22:00:00",
     "Day02": "2025-11-09T22:00:00",
@@ -21,10 +18,8 @@ DEADLINES = {
 }
 
 
-# =========================
-# Load and parse data
-# =========================
-def load_submissions(path: str):
+##data loading
+def load_submissions(path: Path):
     submissions = []
 
     with open(path, encoding="utf-8") as f:
@@ -39,19 +34,31 @@ def load_submissions(path: str):
                 continue
 
             assignment, student = title.rsplit(" by ", 1)
+            assignment = normalize_assignment_name(assignment)
 
             submissions.append({
                 "student": student.strip(),
-                "assignment": assignment.strip(),
+                "assignment": assignment,
                 "time": datetime.fromisoformat(timestamp.replace("Z", ""))
             })
 
     return submissions
 
 
-# =========================
-# Analysis functions
-# =========================
+##Analysis
+def normalize_assignment_name(name: str) -> str:
+    name = name.strip()
+
+    match = re.match(r"day\s*0*(\d+)", name, re.IGNORECASE)
+    if match:
+        day_number = int(match.group(1))
+        return f"Day{day_number:02d}"
+
+    return name
+def assignment_popularity(submissions):
+    return Counter(s["assignment"] for s in submissions)
+
+
 def find_missing_submissions(submissions):
     students = {s["student"] for s in submissions}
     submitted = defaultdict(set)
@@ -72,40 +79,79 @@ def find_late_submissions(submissions):
     late = []
 
     for s in submissions:
-        assignment = s["assignment"]
-        if assignment not in DEADLINES:
+        if s["assignment"] not in DEADLINES:
             continue
 
-        deadline = datetime.fromisoformat(DEADLINES[assignment])
+        deadline = datetime.fromisoformat(DEADLINES[s["assignment"]])
         if s["time"] > deadline:
             hours_late = (s["time"] - deadline).total_seconds() / 3600
-            late.append((s["student"], assignment, hours_late))
+            late.append((s["student"], s["assignment"], hours_late))
 
     return late
+
+
+def late_count_per_assignment(submissions):
+    counter = Counter()
+
+    for s in submissions:
+        if s["assignment"] not in DEADLINES:
+            continue
+
+        deadline = datetime.fromisoformat(DEADLINES[s["assignment"]])
+        if s["time"] > deadline:
+            counter[s["assignment"]] += 1
+
+    return counter
 
 
 def submission_time_deltas(submissions):
     deltas = []
 
     for s in submissions:
-        assignment = s["assignment"]
-        if assignment not in DEADLINES:
+        if s["assignment"] not in DEADLINES:
             continue
 
-        deadline = datetime.fromisoformat(DEADLINES[assignment])
+        deadline = datetime.fromisoformat(DEADLINES[s["assignment"]])
         delta_hours = (s["time"] - deadline).total_seconds() / 3600
         deltas.append(delta_hours)
 
     return deltas
 
 
-def assignment_popularity(submissions):
-    return Counter(s["assignment"] for s in submissions)
+def students_fastest_multiple_times(submissions):
+    earliest = {}
+
+    for s in submissions:
+        if s["assignment"] not in DEADLINES:
+            continue
+
+        if s["assignment"] not in earliest or s["time"] < earliest[s["assignment"]]["time"]:
+            earliest[s["assignment"]] = s
+
+    counter = Counter(s["student"] for s in earliest.values())
+    return counter
 
 
-# =========================
-# Main report
-# =========================
+def fastest_submission_times(submissions):
+    fastest = {}
+
+    for s in submissions:
+        if s["assignment"] not in DEADLINES:
+            continue
+
+        deadline = datetime.fromisoformat(DEADLINES[s["assignment"]])
+
+        if s["assignment"] not in fastest or s["time"] < fastest[s["assignment"]]["time"]:
+            fastest[s["assignment"]] = {
+                "student": s["student"],
+                "hours_before": (deadline - s["time"]).total_seconds() / 3600
+            }
+
+    return fastest
+
+
+
+##Main
 def main():
     base_dir = Path(__file__).parent
     subjects_path = base_dir / "subjects.txt"
@@ -116,112 +162,69 @@ def main():
 
     submissions = load_submissions(subjects_path)
 
+    # -------- Textual reports --------
     print("\n=== Assignment Popularity ===")
     popularity = assignment_popularity(submissions)
-    for assignment, count in popularity.most_common():
-        print(f"{assignment}: {count} submissions")
+    for a, c in popularity.most_common():
+        print(f"{a}: {c}")
 
     print("\n=== Late Submissions ===")
     late = find_late_submissions(submissions)
-    if not late:
-        print("No late submissions 🎉")
-    else:
-        for student, assignment, hours in late:
-            print(f"{student} - {assignment}: {hours:.1f} hours late")
+    for student, assignment, hours in late:
+        print(f"{student} - {assignment}: {hours:.1f} hours late")
 
     print("\n=== Students Missing Assignments (sample) ===")
     missing = find_missing_submissions(submissions)
     for student, tasks in list(missing.items())[:5]:
-        print(f"{student}: missing {', '.join(tasks)}")
+        print(f"{student}: {', '.join(tasks)}")
 
-    deltas = submission_time_deltas(submissions)
-
+    # -------- Graph 1: Popularity --------
     plt.figure()
-    plt.hist(deltas, bins=30)
-    plt.axvline(0)
-    plt.xlabel("Hours relative to deadline")
-    plt.ylabel("Number of submissions")
-    plt.title("Submission time distribution relative to deadline")
+    plt.bar(popularity.keys(), popularity.values(), color='magenta')
+    plt.title("Assignment popularity")
+    plt.xlabel("Assignment")
+    plt.ylabel("Submissions")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.yticks(range(0, max(popularity.values()) + 1))
     plt.show()
 
-def students_fastest_multiple_times(submissions):
-    earliest_by_assignment = {}
-
-    for s in submissions:
-        assignment = s["assignment"]
-        if assignment not in DEADLINES:
-            continue
-
-        if assignment not in earliest_by_assignment:
-            earliest_by_assignment[assignment] = s
-        else:
-            if s["time"] < earliest_by_assignment[assignment]["time"]:
-                earliest_by_assignment[assignment] = s
-
-    counter = Counter(s["student"] for s in earliest_by_assignment.values())
-    return [student for student, count in counter.items() if count > 1]
-
-
-def students_late_multiple_times(submissions):
-    late_counts = Counter()
-
-    for s in submissions:
-        assignment = s["assignment"]
-        if assignment not in DEADLINES:
-            continue
-
-        deadline = datetime.fromisoformat(DEADLINES[assignment])
-        if s["time"] > deadline:
-            late_counts[s["student"]] += 1
-
-    return [student for student, count in late_counts.items() if count > 1]
-
-
-def fastest_submission_times(submissions):
-    fastest = {}
-
-    for s in submissions:
-        assignment = s["assignment"]
-        if assignment not in DEADLINES:
-            continue
-
-        deadline = datetime.fromisoformat(DEADLINES[assignment])
-
-        if assignment not in fastest or s["time"] < fastest[assignment]["time"]:
-            fastest[assignment] = {
-                "student": s["student"],
-                "hours_before": (deadline - s["time"]).total_seconds() / 3600
-            }
-
-    return fastest
-
-    print("\n=== Students Who Submitted First More Than Once ===")
-    fast_students = students_fastest_multiple_times(submissions)
-    if fast_students:
-        for student in fast_students:
-            print(student)
-    else:
-        print("No student submitted first more than once.")
-
-    print("\n=== Students Who Were Late More Than Once ===")
-    late_students = students_late_multiple_times(submissions)
-    if late_students:
-        for student in late_students:
-            print(student)
-    else:
-        print("No student was late more than once.")
-
-    fastest = fastest_submission_times(submissions)
-
-    assignments = list(fastest.keys())
-    hours_before = [fastest[a]["hours_before"] for a in assignments]
+    # -------- Graph 2: Late submissions per assignment --------
+    late_counts = late_count_per_assignment(submissions)
 
     plt.figure()
-    plt.bar(assignments, hours_before)
+    plt.bar(late_counts.keys(), late_counts.values(),  color='lightcoral')
+    plt.title("Late submissions per assignment")
     plt.xlabel("Assignment")
-    plt.ylabel("Hours before deadline")
-    plt.title("Fastest submission for each assignment")
+    plt.ylabel("Late submissions")
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
+    # -------- Graph 3: Submission timing distribution --------
+    deltas = submission_time_deltas(submissions)
+
+    plt.figure()
+    plt.hist(deltas, bins=30,  color='lightseagreen')
+    plt.axvline(0)
+    plt.title("Submission time relative to deadline")
+    plt.xlabel("Hours (negative = early)")
+    plt.ylabel("Number of submissions")
+    plt.tight_layout()
+    plt.show()
+
+    # -------- Graph 4: Fastest students --------
+    fastest_students = students_fastest_multiple_times(submissions)
+
+    plt.figure()
+    plt.bar(fastest_students.keys(), fastest_students.values(),  color='lightsteelblue')
+    plt.title("Students who submitted first")
+    plt.xlabel("Student")
+    plt.ylabel("Times fastest")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
