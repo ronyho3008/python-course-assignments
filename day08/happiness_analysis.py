@@ -5,7 +5,20 @@ import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
-df = pd.read_csv("2019.csv")
+import pandas as pd
+from pathlib import Path
+
+# Path to the directory of this script
+base_dir = Path(__file__).parent
+
+# Path to the CSV file (same folder)
+data_path = base_dir / "2019.csv"
+
+df = pd.read_csv(data_path)
+
+print(df.head())
+
+
 
 print(df.head())
 print(df.info())
