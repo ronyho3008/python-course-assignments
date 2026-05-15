@@ -1,0 +1,47 @@
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import glob
+
+# כל קבצי ה-TIFF בתיקייה
+files = glob.glob("*.tif")
+
+for file in files:
+
+    img = Image.open(file)
+    frames = []
+
+    # קריאת כל ה-frames
+    try:
+        while True:
+            frames.append(np.array(img.copy()))
+            img.seek(len(frames))
+    except EOFError:
+        pass
+
+    # יצירת montage
+    fig, axes = plt.subplots(1, len(frames),
+                             figsize=(5 * len(frames), 5))
+
+    # אם יש רק frame אחד
+    if len(frames) == 1:
+        axes = [axes]
+
+    for i, frame in enumerate(frames):
+        axes[i].imshow(frame, cmap='gray')
+        axes[i].axis('off')
+        axes[i].set_title(f'Frame {i+1}')
+
+    plt.tight_layout()
+
+    # שם לקובץ output
+    output_name = os.path.splitext(file)[0] + "_montage.png"
+
+    plt.savefig(output_name,
+                dpi=300,
+                bbox_inches='tight')
+
+    plt.close()
+
+    print(f"Saved: {output_name}")
